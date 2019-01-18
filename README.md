@@ -1,65 +1,61 @@
-![sharpconfig_logo.png](sharpconfig_logo.png)
+![sharpconfig_logo.png](SharpConfigLogo.png)
 
-SharpConfig is an easy-to-use CFG/INI configuration library for .NET.
+SharpConfig is an easy to use CFG/INI configuration library for .NET.
 
-You can use SharpConfig in your .NET applications to add the functionality
-to read, modify and save configuration files and streams, in either text or binary format.
+You can use SharpConfig to read, modify and save configuration files and streams, in either text or binary format.
 
-> If SharpConfig has helped you and you feel like donating, [feel free](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=WWN94LMDN5HMC)!
-> Donations help to keep the development of SharpConfig active.
+The library is fully compatible with .NET, .NET Core and the Mono Framework.
 
-A configuration file example:
-```cfg
+> SharpConfig is also available at [NuGet](https://www.nuget.org/packages/sharpconfig/)! Just search for `sharpconfig`. 
+
+
+An example Configuration
+---
+
+```ini
 [General]
 # a comment
 SomeString = Hello World!
 SomeInteger = 10 # an inline comment
 SomeFloat = 20.05
-ABoolean = true
+SomeBoolean = true
+SomeArray = { 1, 2, 3 }
+Day = Monday
+
+[Person]
+Name = Peter
+Age = 50
 ```
 
 To read these values, your C# code would look like:
 ```csharp
-Configuration config = Configuration.LoadFromFile( "sample.cfg" );
-Section section = config["General"];
+var config = Configuration.LoadFromFile("sample.cfg");
+var section = config["General"];
 
-string someString = section["SomeString"].Value;
-int someInteger = section["SomeInteger"].GetValue<int>();
-float someFloat = section["SomeFloat"].GetValue<float>();
+string someString = section["SomeString"].StringValue;
+int someInteger = section["SomeInteger"].IntValue;
+float someFloat = section["SomeFloat"].FloatValue;
+bool someBool = section["SomeBoolean"].BoolValue;
+int[] someIntArray = section["SomeArray"].IntValueArray;
+string[] someStringArray = section["SomeArray"].StringValueArray;
+DayOfWeek day = section["Day"].GetValue<DayOfWeek>();
+
+// Entire user-defined objects can be created from sections and vice versa.
+var person = config["Person"].ToObject<Person>();
+// ...
 ```
 
-Enumerations
+Iterating through a Configuration
 ---
 
-SharpConfig is also able to parse enumerations.
-For example you have a configuration like this:
-```cfg
-[DateInfo]
-Day = Monday
-```
-
-It is now possible to read this value as a System.DayOfWeek enum, because Monday is present there.
-An example of how to read it:
-
 ```csharp
-DayOfWeek day = config["DateInfo"]["Day"].GetValue<DayOfWeek>();
-```
-
-Arrays
----
-
-Arrays are also supported in SharpConfig.
-For example you have a configuration like this:
-```cfg
-[General]
-MyArray = {0,2,5,6}
-```
-
-This array can be interpreted as any type array that can be converted from 0, 2, 5 and 6, for example int, float, double, char, byte, string etc.
-
-Reading this array is simple:
-```csharp
-object[] myArray = config["General"]["MyArray"].GetValue<object[]>();
+foreach (var section in myConfig)
+{
+    foreach (var setting in section)
+    {
+        // ...
+    }
+}
 ```
 
 Creating a Configuration in-memory
@@ -71,80 +67,172 @@ var myConfig = new Configuration();
 
 // Set some values.
 // This will automatically create the sections and settings.
-myConfig["Video"]["Width"].Value = "1920";
-myConfig["Video"]["Height"].Value = "1080";
+myConfig["Video"]["Width"].IntValue = 1920;
+myConfig["Video"]["Height"].IntValue = 1080;
 
 // Set an array value.
-myConfig["Video"]["Formats"].SetValue( new string[] { "RGB32", "RGBA32" } );
+myConfig["Video"]["Formats"].StringValueArray = new[] { "RGB32", "RGBA32" };
+
+// Get the values just to test.
+int width = myConfig["Video"]["Width"].IntValue;
+int height = myConfig["Video"]["Height"].IntValue;
+string[] formats = myConfig["Video"]["Formats"].StringValueArray;
+// ...
 ```
 
-Iterating through a Configuration
+Loading a Configuration
 ---
 
 ```csharp
-foreach ( var section in myConfig )
-{
-    foreach ( var setting in section )
-    {
-        ...
-    }
-}
+Configuration.LoadFromFile("myConfig.cfg");        // Load from a text-based file.
+Configuration.LoadFromStream(myStream);            // Load from a text-based stream.
+Configuration.LoadFromString(myString);            // Load from text (source code).
+Configuration.LoadFromBinaryFile("myConfig.cfg");  // Load from a binary file.
+Configuration.LoadFromBinaryStream(myStream);      // Load from a binary stream.
 ```
 
 Saving a Configuration
 ---
 
 ```csharp
-myConfig.Save( "myConfig.cfg" ); // Save to a text-based file.
-myConfig.Save( myStream ); // Save to a text-based stream.
-myConfig.SaveBinary( "myConfig.cfg" ); // Save to a binary file.
-myConfig.SaveBinary( myStream ); // Save to a binary stream.
+myConfig.SaveToFile("myConfig.cfg");        // Save to a text-based file.
+myConfig.SaveToStream(myStream);            // Save to a text-based stream.
+myConfig.SaveToBinaryFile("myConfig.cfg");  // Save to a binary file.
+myConfig.SaveToBinaryStream(myStream);      // Save to a binary stream.
 ```
 
-Object Mapping
+Options
 ---
 
-A nice-to-have in SharpConfig is the mapping of sections to objects.
-If you have a class and enumeration in C# like this:
+Sometimes a project has special configuration files or other needs, for example ignoring all comments in a file.
+To allow for greater flexibility, SharpConfig's behavior is modifiable using static properties of the Configuration class.
+The following properties are the current ones:
+
+* CultureInfo **Configuration.CultureInfo** { get; set; }
+  * Gets or sets the CultureInfo that is used for value conversion in SharpConfig. The default value is _CultureInfo.InvariantCulture_.
+  
+* char[] **Configuration.ValidCommentChars** { get; }
+  * Gets the array that contains all valid comment delimiting characters. The current value is { '#', ';' }.
+
+* char **Configuration.PreferredCommentChar** { get; set; }
+  * Gets or sets the preferred comment char when saving configurations. The default value is '#'.
+
+* char **Configuration.ArrayElementSeparator** { get; set; }
+  * Gets or sets the array element separator character for settings. The default value is ','.
+  * **Remember** that after you change this value while **Setting** instances exist, to expect their ArraySize and other array-related values to return different values.
+
+* bool **Configuration.IgnoreInlineComments** { get; set; }
+  * Gets or sets a value indicating whether inline-comments should be ignored when parsing a configuration.
+
+* bool **Configuration.IgnorePreComments** { get; set; }
+  * Gets or sets a value indicating whether pre-comments should be ignored when parsing a configuration.
+
+* bool **Configuration.SpaceBetweenEquals** { get; set; }
+  * Gets or sets a value indicating whether space between equals should be added when creating a configuration.
+  
+* bool **Configuration.OutputRawStringValues** { get; set; }
+  * Gets or sets a value indicating whether string values are written without quotes, but including everything in between. Example:
+    * The setting `MySetting=" Example value"` is written to a file in as `MySetting= Example value`
+    
+
+Ignoring properties, fields and types
+---
+
+Suppose you have the following class:
 ```csharp
-class Person
+class SomeClass
 {
     public string Name { get; set; }
     public int Age { get; set; }
-    public Gender Gender { get; set; }
-}
 
-enum Gender
+    [SharpConfig.Ignore]
+    public int SomeInt { get; set; }
+}
+```
+
+SharpConfig will now ignore the **SomeInt** property when creating sections from objects of type **SomeClass** and vice versa.
+Now suppose you have a type in your project that should always be ignored.
+You would have to mark every property that returns this type with a [SharpConfig.Ignore] attribute.
+An easier solution is to just apply the [SharpConfig.Ignore] attribute to the type.
+
+Example:
+```csharp
+[SharpConfig.Ignore]
+class ThisTypeShouldAlwaysBeIgnored
 {
-    Male,
-    Female
+    // ...
+}
+```
+**instead of**:
+```csharp
+[SharpConfig.Ignore]
+class SomeClass
+{
+    [SharpConfig.Ignore]
+    public ThisTypeShouldAlwaysBeIngored T1 { get; set; }
+
+    [SharpConfig.Ignore]
+    public ThisTypeShouldAlwaysBeIngored T2 { get; set; }
+
+    [SharpConfig.Ignore]
+    public ThisTypeShouldAlwaysBeIngored T3 { get; set; }
 }
 ```
 
-It is possible to create an object straight from the configuration file:
-```cfg
-[Person]
-Name = Peter
-Age = 50
-Gender = Male
-```
-Like this:
-```csharp
-Person person = config["Person"].CreateObject<Person>();
-```
+This ignoring mechanism works the same way for public fields.
 
-Note: The mapping only works on classes, public properties and primitive data types (int, bool, enums ...).
 
-If you already have a Person object and don't want to create a new one, you can use the MapTo method:
-```csharp
-config["Person"].MapTo(person);
-```
-
-Installing via NuGet
+Adding custom object converters
 ---
 
-You can install SharpConfig via the following NuGet command:
-> Install-Package sharpconfig
+There may be cases where you want to implement conversion rules for a custom type, with specific requirements.
+This is easy and involves two steps, which are illustrated using the Person example:
 
+```csharp
+public class Person
+{
+    public string Name { get; set; }
+    public int Age { get; set; }
+}
+```
 
-[NuGet Page](https://www.nuget.org/packages/sharpconfig/)
+Step 1: Create a custom converter class that derives from **SharpConfig.TypeStringConverter\<T\>**:
+
+```csharp
+using SharpConfig;
+public class PersonStringConverter : TypeStringConverter<Person>
+{
+    // This method is responsible for converting a Person object to a string.
+    public override string ConvertToString(object value)
+    {
+        var person = (Person)value;
+        return string.Format("[{0};{1}]", person.Name, person.Age);
+    }
+
+    // This method is responsible for converting a string to a Person object.
+    public override object ConvertFromString(string value, Type hint)
+    {
+        var split = value.Trim('[', ']').Split(';');
+
+        var person = new Person();
+        person.Name = split[0];
+        person.Age = int.Parse(split[1]);
+
+        return person;
+     }
+}
+```
+
+Step 2: Register the PersonStringConverter (anywhere you like):
+
+```csharp
+using SharpConfig;
+Configuration.RegisterTypeStringConverter(new PersonStringConverter());
+```
+
+That's it!
+
+Whenever a Person object is used on a Setting (via GetValue() and SetValue()), your converter is
+selected to take care of the conversion.
+This also automatically works with SetValue() for arrays and GetValueArray().
+

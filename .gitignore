@@ -181,3 +181,9 @@ UpgradeLog*.htm
 
 # Microsoft Fakes
 FakesAssemblies/
+/bin/Release
+/bin/Debug
+*.ide-wal
+*.ide-shm
+*.ide
+*.lock
